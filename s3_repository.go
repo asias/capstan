@@ -121,6 +121,7 @@ func ListImagesRemote(search string) {
 }
 
 func (r *Repo) DownloadFile(name string) error {
+	fmt.Printf("create=%s", filepath.Join(r.Path, strings.TrimSuffix(name,".gz")))
 	output, err := os.Create(filepath.Join(r.Path, strings.TrimSuffix(name,".gz")))
 	if err != nil {
 		return err
@@ -153,6 +154,7 @@ func (r *Repo) DownloadImage(hypervisor string, path string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("path=%s, parts=%s", path, parts)
 	return r.DownloadFile(fmt.Sprintf("%s/%s.%s.gz", path, parts[1], hypervisor))
 }
 

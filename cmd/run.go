@@ -53,8 +53,7 @@ func Run(repo *capstan.Repo, config *RunConfig) error {
 		}
 	} else {
 		config.ImageName = repo.DefaultImage()
-		fmt.Println("------ defulat image -----")
-		fmt.Println(config)
+		fmt.Println("------ defulat image -----", config)
 		if config.ImageName == "" {
 			return fmt.Errorf("No Capstanfile found, unable to run.")
 		}
