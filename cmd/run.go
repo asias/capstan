@@ -33,6 +33,8 @@ type RunConfig struct {
 
 func Run(repo *capstan.Repo, config *RunConfig) error {
 	var path string
+	fmt.Println(config)
+	fmt.Println(repo)
 	if config.ImageName != "" {
 		if _, err := os.Stat(config.ImageName); os.IsNotExist(err) {
 			if repo.ImageExists(config.Hypervisor, config.ImageName) {
@@ -51,6 +53,8 @@ func Run(repo *capstan.Repo, config *RunConfig) error {
 		}
 	} else {
 		config.ImageName = repo.DefaultImage()
+		fmt.Println("------ defulat image -----")
+		fmt.Println(config)
 		if config.ImageName == "" {
 			return fmt.Errorf("No Capstanfile found, unable to run.")
 		}

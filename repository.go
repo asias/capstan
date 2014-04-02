@@ -67,6 +67,7 @@ func (r *Repo) PushImage(imageName string, file string) error {
 
 func (r *Repo) ImageExists(hypervisor, image string) bool {
 	file := r.ImagePath(hypervisor, image)
+	fmt.Println(file)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return false
 	}
@@ -121,5 +122,6 @@ func (r *Repo) DefaultImage() string {
 		return ""
 	}
 	image := path.Base(pwd)
+	fmt.Println("DefaultImage", pwd, image)
 	return image
 }
