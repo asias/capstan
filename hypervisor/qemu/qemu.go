@@ -9,6 +9,7 @@ package qemu
 
 import (
 	"fmt"
+	"github.com/kylelemons/go-gypsy/yaml"
 	"github.com/cloudius-systems/capstan/cpio"
 	"github.com/cloudius-systems/capstan/nat"
 	"github.com/cloudius-systems/capstan/nbd"
@@ -23,6 +24,7 @@ import (
 	"strconv"
 	"time"
 	"path/filepath"
+	"strings"
 )
 
 type VMConfig struct {
@@ -35,6 +37,7 @@ type VMConfig struct {
 	BackingFile bool
 	InstanceDir string
 	Monitor	string
+	ConfigFile string
 }
 
 func UploadRPM(r *util.Repo, hypervisor string, image string, config *util.Config, verbose bool) error {
@@ -162,7 +165,7 @@ func SetArgs(r *util.Repo, hypervisor, image string, args string) error {
 }
 
 func DeleteVM(c *VMConfig) {
-	cmd := exec.Command("rm", "-f", c.Image, " ", c.Monitor)
+	cmd := exec.Command("rm", "-f", c.Image, " ", c.Monitor, " ", c.ConfigFile)
 	_, err := cmd.Output()
 	if err != nil {
 		fmt.Printf("rm failed: %s, %s", c.Image, c.Monitor);
@@ -201,6 +204,112 @@ func StopVM(name string) error {
 	return nil;
 }
 
+func LoadConfig(name string) (*VMConfig, error) {
+	dir := filepath.Join(util.HomePath(), ".capstan/instances/qemu", name)
+	c := &VMConfig{
+		ConfigFile : filepath.Join(dir, "osv.config"),
+	}
+	config, err := yaml.ReadFile(c.ConfigFile)
+	if err != nil {
+		fmt.Printf("Open file failed: %s\n", c.ConfigFile)
+		return nil, err
+	}
+
+	c.Name, err = config.Get("Name")
+	if err != nil {
+		return nil, err
+	}
+
+	c.Image, err = config.Get("Image")
+	if err != nil {
+		return nil, err
+	}
+
+	c.Verbose, err = config.GetBool("Verbose")
+	if err != nil {
+		return nil, err
+	}
+
+	c.Memory, err = config.GetInt("Memory")
+	if err != nil {
+		return nil, err
+	}
+
+	cpus, err := config.GetInt("Cpus")
+	if err != nil {
+		return nil, err
+	}
+	c.Cpus = int(cpus)
+
+	c.BackingFile, err = config.GetBool("BackingFile")
+	if err != nil {
+		return nil, err
+	}
+
+	c.InstanceDir, err = config.Get("InstanceDir")
+	if err != nil {
+		return nil, err
+	}
+
+	c.Monitor, err = config.Get("Monitor")
+	if err != nil {
+		return nil, err
+	}
+
+	c.ConfigFile, err = config.Get("ConfigFile")
+	if err != nil {
+		return nil, err
+	}
+
+	natNode, err := yaml.Child(config.Root, "NatRules")
+	if err != nil {
+		return nil, err
+	}
+	if natNode != nil {
+		natList := natNode.(yaml.List)
+		for _, v := range natList {
+			m := v.(yaml.Map)
+			scalar := m["HostPort"].(yaml.Scalar)
+			host := strings.TrimSpace(scalar.String())
+			scalar = m["GuestPort"].(yaml.Scalar)
+			guest := strings.TrimSpace(scalar.String())
+			c.NatRules = append(c.NatRules, nat.Rule{HostPort: host, GuestPort: guest})
+		}
+	}
+
+	return c, nil
+}
+
+func StoreConfig(c *VMConfig) error {
+	file, err := os.OpenFile(c.ConfigFile, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Printf("Store: Open file failed: %s\n", c.ConfigFile)
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	writer.WriteString("Name: " + c.Name + "\n")
+	writer.WriteString("Image: " + c.Image + "\n")
+	writer.WriteString("Verbose: " + strconv.FormatBool(c.Verbose) + "\n")
+	writer.WriteString("Memory: " + strconv.FormatInt(c.Memory, 10) + "\n")
+	writer.WriteString("Cpus: " + strconv.Itoa(c.Cpus) + "\n")
+	writer.WriteString("BackingFile: " + strconv.FormatBool(c.BackingFile) + "\n")
+	writer.WriteString("InstanceDir: " + c.InstanceDir + "\n")
+	writer.WriteString("Monitor: " + c.Monitor + "\n")
+	writer.WriteString("ConfigFile: " + c.ConfigFile + "\n")
+	writer.WriteString("NatRules: \n")
+	for _, forward := range c.NatRules {
+		writer.WriteString("   - HostPort: " + forward.HostPort + "\n")
+		writer.WriteString("     GuestPort: " + forward.GuestPort + "\n")
+	}
+
+	writer.Flush()
+
+	return err
+}
+
 func LaunchVM(c *VMConfig, extra ...string) (*exec.Cmd, error) {
 	if c.BackingFile {
 		dir := c.InstanceDir
@@ -217,15 +326,21 @@ func LaunchVM(c *VMConfig, extra ...string) (*exec.Cmd, error) {
 		}
 		backingFile := "backing_file=" + image
 		newDisk := dir + "/disk.qcow2"
+
+		if _, err := os.Stat(newDisk); os.IsNotExist(err) {
 		cmd := exec.Command("qemu-img", "create", "-f", "qcow2", "-o", backingFile, newDisk)
 		_, err = cmd.Output()
 		if err != nil {
 			fmt.Printf("qemu-img failed: %s", newDisk);
 			return nil, err
 		}
-
 		c.Image = newDisk
+		}
+
 	}
+
+	StoreConfig(c)
+
 	args := append(c.vmArguments(), extra...)
 	cmd := exec.Command("qemu-system-x86_64", args...)
 	if c.Verbose {
