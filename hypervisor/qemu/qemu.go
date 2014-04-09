@@ -9,7 +9,7 @@ package qemu
 
 import (
 	"fmt"
-	"github.com/kylelemons/go-gypsy/yaml"
+	"gopkg.in/yaml.v1"
 	"github.com/cloudius-systems/capstan/cpio"
 	"github.com/cloudius-systems/capstan/nat"
 	"github.com/cloudius-systems/capstan/nbd"
@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 	"path/filepath"
-	"strings"
 )
 
 type VMConfig struct {
@@ -209,72 +208,15 @@ func LoadConfig(name string) (*VMConfig, error) {
 	c := &VMConfig{
 		ConfigFile : filepath.Join(dir, "osv.config"),
 	}
-	config, err := yaml.ReadFile(c.ConfigFile)
+
+	data, err := ioutil.ReadFile(c.ConfigFile)
 	if err != nil {
 		fmt.Printf("Open file failed: %s\n", c.ConfigFile)
 		return nil, err
 	}
-
-	c.Name, err = config.Get("Name")
+	err = yaml.Unmarshal(data, c)
 	if err != nil {
 		return nil, err
-	}
-
-	c.Image, err = config.Get("Image")
-	if err != nil {
-		return nil, err
-	}
-
-	c.Verbose, err = config.GetBool("Verbose")
-	if err != nil {
-		return nil, err
-	}
-
-	c.Memory, err = config.GetInt("Memory")
-	if err != nil {
-		return nil, err
-	}
-
-	cpus, err := config.GetInt("Cpus")
-	if err != nil {
-		return nil, err
-	}
-	c.Cpus = int(cpus)
-
-	c.BackingFile, err = config.GetBool("BackingFile")
-	if err != nil {
-		return nil, err
-	}
-
-	c.InstanceDir, err = config.Get("InstanceDir")
-	if err != nil {
-		return nil, err
-	}
-
-	c.Monitor, err = config.Get("Monitor")
-	if err != nil {
-		return nil, err
-	}
-
-	c.ConfigFile, err = config.Get("ConfigFile")
-	if err != nil {
-		return nil, err
-	}
-
-	natNode, err := yaml.Child(config.Root, "NatRules")
-	if err != nil {
-		return nil, err
-	}
-	if natNode != nil {
-		natList := natNode.(yaml.List)
-		for _, v := range natList {
-			m := v.(yaml.Map)
-			scalar := m["HostPort"].(yaml.Scalar)
-			host := strings.TrimSpace(scalar.String())
-			scalar = m["GuestPort"].(yaml.Scalar)
-			guest := strings.TrimSpace(scalar.String())
-			c.NatRules = append(c.NatRules, nat.Rule{HostPort: host, GuestPort: guest})
-		}
 	}
 
 	return c, nil
