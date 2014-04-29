@@ -72,6 +72,7 @@ func vmCreate(c *VMConfig) error {
 
 func vmDeleteImage(c *VMConfig) error {
 	if c.Tarball != "" {
+		c.Tarball = ""
 		err := gsUtil("rm", c.CloudStoragePath)
 		if err != nil {
 			return err
