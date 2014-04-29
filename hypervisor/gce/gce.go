@@ -136,7 +136,6 @@ func vmPrintInfo(c *VMConfig) error {
 		return err
 	}
 
-	fmt.Printf("Created Instance: %s\n", c.Name)
 	fmt.Printf("Public        IP: %s\n", externalIP)
 	fmt.Printf("Internal      IP: %s\n", internalIP)
 	fmt.Printf("Machine     Type: %s\n", c.MachineType)
