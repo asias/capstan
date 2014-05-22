@@ -211,7 +211,7 @@ func (c *VMConfig) sockPath() string {
 	if runtime.GOOS == "windows" {
 		return "\\\\.\\pipe\\" + c.Name
 	} else {
-		return filepath.Join(c.Dir, c.Name, fmt.Sprintf("%s.sock", c.Name))
+		return filepath.Join(c.Dir, c.Name, "osv.sock")
 	}
 }
 
