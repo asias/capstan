@@ -262,7 +262,7 @@ func LoginCheck() (error) {
 	out, err := exec.Command("gcutil", "whoami").CombinedOutput()
 	if err != nil {
 		fmt.Println("Failed to execute gcutil cmd")
-		fmt.Println(out)
+		fmt.Println(string(out))
 		return err
 	}
 	return nil
