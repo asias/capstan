@@ -259,7 +259,7 @@ func LoginCheck() (error) {
 		fmt.Println("gcutil is not found. Please install Google Cloud SDK: https://developers.google.com/cloud/sdk")
 		return err
 	}
-	out, err := exec.Command("gcutil", "whoami").Output()
+	out, err := exec.Command("gcutil", "whoami").CombinedOutput()
 	if err != nil {
 		fmt.Println("Failed to execute gcutil cmd")
 		fmt.Println(out)
